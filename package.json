@@ -1,6 +1,6 @@
 {
     "name": "@ffmpeg-micro/n8n-nodes-ffmpeg-micro",
-    "version": "0.1.0",
+    "version": "0.1.1",
     "description": "n8n community node for the FFmpeg Micro API. Transcode video and audio, generate subtitles with Whisper transcription, upload files, and watch for completed jobs.",
     "license": "MIT",
     "homepage": "https://www.ffmpeg-micro.com",
