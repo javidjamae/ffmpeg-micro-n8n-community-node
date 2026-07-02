@@ -54,7 +54,7 @@ This first version does not have provenance. That is fine: it only reserves the 
 ### 2. Configure the trusted publisher
 
 ```bash
-npm trust github n8n-nodes-ffmpeg-micro \
+npm trust github @ffmpeg-micro/n8n-nodes-ffmpeg-micro \
   --file publish.yml \
   --repo javidjamae/ffmpeg-micro-n8n-community-node \
   --allow-publish

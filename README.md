@@ -8,7 +8,7 @@ This is an n8n community node for the [FFmpeg Micro](https://www.ffmpeg-micro.co
 
 Follow the [installation guide](https://docs.n8n.io/integrations/community-nodes/installation/) in the n8n community nodes documentation.
 
-For self-hosted n8n, install from Settings, then Community Nodes, using the package name `n8n-nodes-ffmpeg-micro`.
+For self-hosted n8n, install from Settings, then Community Nodes, using the package name `@ffmpeg-micro/n8n-nodes-ffmpeg-micro`.
 
 ## Credentials
 
