@@ -160,6 +160,15 @@ async function executeTranscode(
 			body.options = options;
 		}
 
+		const rawMetadata = this.getNodeParameter('metadata', i, '') as string | IDataObject;
+		if (typeof rawMetadata === 'string' && rawMetadata.trim() !== '') {
+			body.metadata = jsonParse<IDataObject>(rawMetadata, {
+				errorMessage: 'Metadata is not valid JSON',
+			});
+		} else if (typeof rawMetadata === 'object' && rawMetadata !== null && Object.keys(rawMetadata).length > 0) {
+			body.metadata = rawMetadata;
+		}
+
 		const filtersCollection = this.getNodeParameter('filters', i, {}) as IDataObject;
 		const filterEntries = (filtersCollection.filter as IDataObject[]) ?? [];
 		if (filterEntries.length > 0) {
@@ -188,8 +197,10 @@ async function executeTranscode(
 		const qs: IDataObject = { limit: this.getNodeParameter('limit', i) as number };
 		const status = this.getNodeParameter('status', i, '') as string;
 		const since = this.getNodeParameter('since', i, '') as string;
+		const until = this.getNodeParameter('until', i, '') as string;
 		if (status) qs.status = status;
 		if (since) qs.since = since;
+		if (until) qs.until = until;
 		const response = await ffmpegMicroApiRequest.call(this, 'GET', '/v1/transcodes', undefined, qs);
 		return (response.items as IDataObject[]) ?? [];
 	}
@@ -233,8 +244,10 @@ async function executeTranscribe(
 		const qs: IDataObject = { limit: this.getNodeParameter('limit', i) as number };
 		const status = this.getNodeParameter('status', i, '') as string;
 		const since = this.getNodeParameter('since', i, '') as string;
+		const until = this.getNodeParameter('until', i, '') as string;
 		if (status) qs.status = status;
 		if (since) qs.since = since;
+		if (until) qs.until = until;
 		const response = await ffmpegMicroApiRequest.call(
 			this,
 			'GET',

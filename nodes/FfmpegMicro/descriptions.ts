@@ -290,6 +290,16 @@ export const transcodeCreateProperties: INodeProperties[] = [
 		],
 	},
 	{
+		displayName: 'Metadata',
+		name: 'metadata',
+		type: 'json',
+		default: '',
+		placeholder: '{ "original_filename": "clip.mp4" }',
+		description:
+			'Optional JSON object stored with the job and returned on every job read at metadata.user. Use it to correlate jobs with external systems, for example an original filename or a source record ID. Maximum 8192 bytes serialized.',
+		displayOptions: { show: { resource: ['transcode'], operation: ['create'] } },
+	},
+	{
 		displayName: 'Composition Filters',
 		name: 'filters',
 		type: 'fixedCollection',
@@ -343,6 +353,14 @@ export const transcodeListProperties: INodeProperties[] = [
 		type: 'dateTime',
 		default: '',
 		description: 'Return only jobs updated at or after this date and time',
+		displayOptions: { show: { resource: ['transcode'], operation: ['list'] } },
+	},
+	{
+		displayName: 'Until',
+		name: 'until',
+		type: 'dateTime',
+		default: '',
+		description: 'Return only jobs updated at or before this date and time',
 		displayOptions: { show: { resource: ['transcode'], operation: ['list'] } },
 	},
 	{
@@ -439,6 +457,14 @@ export const transcribeListProperties: INodeProperties[] = [
 		type: 'dateTime',
 		default: '',
 		description: 'Return only jobs updated at or after this date and time',
+		displayOptions: { show: { resource: ['transcribe'], operation: ['list'] } },
+	},
+	{
+		displayName: 'Until',
+		name: 'until',
+		type: 'dateTime',
+		default: '',
+		description: 'Return only jobs updated at or before this date and time',
 		displayOptions: { show: { resource: ['transcribe'], operation: ['list'] } },
 	},
 ];
