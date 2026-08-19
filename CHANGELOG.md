@@ -10,7 +10,7 @@ This project follows [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
-- **FFmpeg Micro Trigger no longer declares `usableAsTool: true`.** The regular FFmpeg Micro node keeps the flag and remains available as an AI Agent tool. No workflow behavior changes — the trigger was never actually invocable as a tool.
+- **FFmpeg Micro Trigger no longer declares `usableAsTool: true`.** The regular FFmpeg Micro node keeps the flag and remains available as an AI Agent tool. No workflow behavior changes, unless you had attached "FFmpeg Micro Trigger" from the AI Agent tool picker — an entry that appeared in the picker but never worked when invoked. That entry no longer exists, so remove it from the agent and use the regular FFmpeg Micro node as the tool instead.
 
 ## 0.2.2
 
