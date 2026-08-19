@@ -280,6 +280,27 @@ async function waitForJob(
 	for (;;) {
 		const job = await ffmpegMicroApiRequest.call(this, 'GET', `${endpointBase}/${jobId}`);
 		if (TERMINAL_STATUSES.includes(job.status as string)) {
+			// 'failed' and 'canceled' are terminal but they are NOT success, and
+			// returning them as ordinary output rendered every failure as a green
+			// node. That is how a quota-blocked customer retried 43 times while
+			// their workflow reported success on each one, and how the upgrade
+			// link in our error messages went 180 days without a single click:
+			// no execution ever LOOKED failed. Throwing makes the failure visible
+			// and, with "Continue On Fail" / an error output configured, routable
+			// — which is where over-quota handling belongs. Use the Get operation
+			// instead to inspect a job's status without asserting success.
+			if (job.status === 'failed') {
+				throw new NodeOperationError(
+					this.getNode(),
+					(job.error_message as string) || `Job ${jobId} failed`,
+					{ itemIndex: i, description: `Job ${jobId} finished with status "failed".` },
+				);
+			}
+			if (job.status === 'canceled') {
+				throw new NodeOperationError(this.getNode(), `Job ${jobId} was canceled before it produced output`, {
+					itemIndex: i,
+				});
+			}
 			return job;
 		}
 		if (Date.now() - start + pollIntervalMs > timeoutMs) {
