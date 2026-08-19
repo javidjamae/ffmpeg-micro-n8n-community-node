@@ -24,14 +24,37 @@ gh run watch --exit-status
 
 ## How publishing works
 
-1. A version bump lands on `main` (or a tag matching `*.*.*` is pushed — see the escape hatch below).
+1. A version bump lands on `main`.
 2. That triggers `.github/workflows/publish.yml`.
 3. The workflow compares `package.json`'s version against npm and stops there if it already exists.
-4. Otherwise `npm run release` detects GitHub Actions and runs lint, build, then `npm publish` with provenance. npm authenticates through the trusted publisher configured on the package, so no token is involved.
+4. It then runs n8n's own review lint against the source (`scripts/scan-gate.mjs`) and stops if that would be rejected — see [Review rules are checked before publishing](#review-rules-are-checked-before-publishing).
+5. Otherwise `npm run release` detects GitHub Actions and runs lint, build, then `npm publish` with provenance. npm authenticates through the trusted publisher configured on the package, so no token is involved.
 
 In CI, `npm run release` performs **no git operations** — it does not commit, tag, or push. That is why publishing on a branch push works exactly like publishing on a tag push, and why the workflow only needs `contents: read`.
 
 npm is the source of truth for what has shipped, deliberately, rather than git tags. A tag can be missing, mistyped, or point at a version that never published; "is this version on the registry" is the exact question that matters and cannot be wrong.
+
+## Review rules are checked before publishing
+
+Publishing is not the last gate — n8n reviews every version before it reaches n8n Cloud, and a rejection is expensive: the **previous** version stays live for users while the fix goes through a new bump, publish, and re-review. v0.2.2 was rejected this way over a single lint error.
+
+So `scripts/scan-gate.mjs` runs the reviewer's own linter (`@n8n/scan-community-package`) against local source. It runs in two places:
+
+- **CI, on every PR** — cheap early warning while you are still on a branch.
+- **`publish.yml`, right before the publish step** — the one that can actually block a release. CI cannot: it is a separate workflow racing publish on the same push.
+
+You can run it yourself:
+
+```bash
+npm install --no-save @n8n/scan-community-package@beta
+node scripts/scan-gate.mjs
+```
+
+The dependency is installed unpinned and unsaved on purpose. The gate is only useful if it matches what n8n reviews with **today**, so it is not frozen in the lockfile. The trade-off is real: a new rule in n8n's beta can fail this check on an unrelated PR. That is intended — a failed check on a branch costs minutes, a rejected release costs a version.
+
+This covers the lint leg only. The scanner's other checks (npm provenance, and that the published tarball matches the attested GitHub source) cannot run before publishing and are verified by n8n after.
+
+If it fails in `publish.yml`, the version bump has merged but nothing published. Fix forward and re-run the workflow; the version guard makes that safe.
 
 ## If a release run fails
 

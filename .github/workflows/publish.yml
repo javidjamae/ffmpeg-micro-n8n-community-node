@@ -121,6 +121,21 @@ jobs:
             echo "✅ ${NAME}@${VERSION} is not on npm yet — publishing."
           fi
 
+      # Last line of defence: n8n's own review lint, run against the source
+      # about to be published. CI runs this too, but CI is a separate workflow
+      # racing this one on the same push — it cannot block a publish. This can.
+      #
+      # A failure here means the version bump merged and nothing published,
+      # which is loud and recoverable (fix forward, then re-run this workflow —
+      # the guard above makes that safe). The alternative is publishing a
+      # version that n8n rejects, which strands the previous version as the one
+      # live on n8n Cloud until an entirely new version clears review.
+      - name: Check against n8n review rules
+        if: steps.check.outputs.publish == 'true'
+        run: |
+          npm install --no-save --no-audit --no-fund @n8n/scan-community-package@beta
+          node scripts/scan-gate.mjs
+
       - name: Release
         if: steps.check.outputs.publish == 'true'
         # Publishes to npm with a provenance attestation (requires id-token: write above).

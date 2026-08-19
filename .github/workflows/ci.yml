@@ -7,8 +7,10 @@ on:
       - main
 
 # Cancel in-progress runs for the same branch/PR to avoid wasting CI minutes.
+# The ref must be in the group key — without it every PR shares one group and
+# they cancel each other's runs.
 concurrency:
-  group: ci-$
+  group: ci-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -32,3 +34,15 @@ jobs:
 
       - name: Run build
         run: 'npm run build'
+
+      # Runs n8n's own review lint (the gate that rejected v0.2.2) against this
+      # branch, so a rejection surfaces here instead of after publishing.
+      #
+      # Installed unpinned and --no-save on purpose: this must match what n8n
+      # reviews with today, not what a lockfile froze. That means a new rule in
+      # their beta can fail this check on an unrelated PR — which is the point,
+      # and is far cheaper than finding out via a rejection email.
+      - name: Check against n8n review rules
+        run: |
+          npm install --no-save --no-audit --no-fund @n8n/scan-community-package@beta
+          node scripts/scan-gate.mjs

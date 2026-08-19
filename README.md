@@ -65,7 +65,7 @@ npm run lint
 npm run build
 ```
 
-Releases are published to npm through GitHub Actions with a provenance statement. Run `npm run release` to version, tag, and push.
+Releases are published to npm through GitHub Actions with a provenance statement. To release: bump `version` in `package.json`, add a `CHANGELOG.md` entry, and merge. There is no local release command — `npm run release` is CI-only. See [RELEASING.md](RELEASING.md).
 
 ## License
 
