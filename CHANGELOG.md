@@ -4,6 +4,14 @@ All notable changes to `@ffmpeg-micro/n8n-nodes-ffmpeg-micro`.
 
 This project follows [Semantic Versioning](https://semver.org/).
 
+## 0.2.3
+
+**Removes `usableAsTool` from the FFmpeg Micro Trigger node**, required by n8n's community node review (trigger nodes cannot be invoked as AI tools, so the flag only polluted the AI Agent tool picker). Contains all of 0.2.2, which failed review on this one lint error and was never approved.
+
+### Fixed
+
+- **FFmpeg Micro Trigger no longer declares `usableAsTool: true`.** The regular FFmpeg Micro node keeps the flag and remains available as an AI Agent tool. No workflow behavior changes — the trigger was never actually invocable as a tool.
+
 ## 0.2.2
 
 **Failed and canceled jobs now fail the node.** This is a deliberate behavior change, and the reason to upgrade.

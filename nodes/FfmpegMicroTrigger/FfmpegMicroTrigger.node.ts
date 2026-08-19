@@ -64,7 +64,6 @@ export class FfmpegMicroTrigger implements INodeType {
 				description: 'Max number of results to return',
 			},
 		],
-		usableAsTool: true,
 	};
 
 	async poll(this: IPollFunctions): Promise<INodeExecutionData[][] | null> {

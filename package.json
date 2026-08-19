@@ -1,6 +1,6 @@
 {
     "name": "@ffmpeg-micro/n8n-nodes-ffmpeg-micro",
-    "version": "0.2.2",
+    "version": "0.2.3",
     "description": "n8n community node for the FFmpeg Micro API. Transcode video and audio, generate subtitles with Whisper transcription, upload files, and watch for completed jobs.",
     "license": "MIT",
     "homepage": "https://www.ffmpeg-micro.com",
@@ -21,15 +21,15 @@
         "type": "git",
         "url": "git+https://github.com/javidjamae/ffmpeg-micro-n8n-community-node.git"
     },
-   "scripts": {
-		"build": "n8n-node build",
-		"build:watch": "tsc --watch",
-		"dev": "n8n-node dev",
-		"lint": "n8n-node lint",
-		"lint:fix": "n8n-node lint --fix",
-		"release": "node scripts/ci-only.mjs && n8n-node release",
-		"prepublishOnly": "n8n-node prerelease"
-	},
+    "scripts": {
+        "build": "n8n-node build",
+        "build:watch": "tsc --watch",
+        "dev": "n8n-node dev",
+        "lint": "n8n-node lint",
+        "lint:fix": "n8n-node lint --fix",
+        "release": "node scripts/ci-only.mjs && n8n-node release",
+        "prepublishOnly": "n8n-node prerelease"
+    },
     "files": [
         "dist"
     ],
@@ -48,7 +48,7 @@
         ]
     },
     "devDependencies": {
-        "@n8n/node-cli": "*",
+        "@n8n/node-cli": "^0.44.3",
         "eslint": "9.32.0",
         "prettier": "3.6.2",
         "release-it": "^19.0.4",
