@@ -45,17 +45,30 @@
 #
 # ─── RELEASE PROCESS ───────────────────────────────────────────────────────────
 #
-# Run the following command locally to start an interactive release:
+# NORMAL PATH — nothing manual. Bump "version" in package.json inside your PR,
+# add a CHANGELOG entry, and merge. This workflow runs on the push to main,
+# notices that version is not on npm yet, and publishes it.
 #
-#   npm run release
+# There is no tag to remember and no local command to run. Forgetting the bump
+# is harmless: the guard sees the version already on npm and skips, so merging
+# a normal PR never republishes.
 #
-# This will lint, build, prompt for a version bump, update the changelog,
-# commit, tag, and push — which triggers this workflow to publish to npm.
+# ESCAPE HATCH — pushing a tag like 0.2.1 still publishes, for the case where
+# main is already correct but the run failed or was never triggered.
+#
+# LOCAL — `npm run release` still works for an interactive bump, but it is no
+# longer needed and it bumps the version itself. Do not run it against a
+# package.json whose version was already bumped in a PR, or you will skip a
+# version number.
 
 name: Publish
 
 on:
+  # Publish when a version bump lands on main. The guard below decides whether
+  # there is anything to do, so this is safe on every merge.
   push:
+    branches:
+      - main
     tags:
       # Matches 0.1.0, 1.2.3, 2.0.0-rc.1, etc.
       # See "TAG CONVENTION" above if you prefer tags with a "v" prefix.
@@ -84,7 +97,31 @@ jobs:
       - name: Install dependencies
         run: 'npm ci'
 
+      # Is the version in package.json already on npm? This is what makes it
+      # safe to run on every push to main. npm is the source of truth here, not
+      # git tags — a tag can be missing, mistyped, or created for a version that
+      # never published, whereas "is this version on the registry" is the exact
+      # question we care about and cannot be wrong about.
+      #
+      # `npm view <pkg>@<version> version` exits non-zero when the version does
+      # not exist, which is the signal to publish.
+      - name: Decide whether there is anything to publish
+        id: check
+        run: |
+          NAME=$(node -p "require('./package.json').name")
+          VERSION=$(node -p "require('./package.json').version")
+          echo "Package: ${NAME}@${VERSION}"
+          if npm view "${NAME}@${VERSION}" version > /dev/null 2>&1; then
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+            echo "⏭️  ${NAME}@${VERSION} is already on npm — nothing to do."
+            echo "    (This is the normal outcome for a PR that did not bump the version.)"
+          else
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+            echo "✅ ${NAME}@${VERSION} is not on npm yet — publishing."
+          fi
+
       - name: Release
+        if: steps.check.outputs.publish == 'true'
         # Publishes to npm with a provenance attestation (requires id-token: write above).
         # Lint and build run automatically as part of the release process.
         #
