@@ -46,7 +46,8 @@
 #   3. merge
 #
 # The push to main runs this workflow, which publishes if that version is not on
-# npm yet. No tag to push, no local command to run.
+# npm yet. No tag to push, no local command to run — the published commit is
+# tagged for you afterwards by the `tag` job at the bottom of this file.
 #
 # Forgetting the bump is harmless — the guard sees the version already on npm
 # and skips, so merging an ordinary PR never republishes.
@@ -86,6 +87,11 @@ jobs:
       # Scoped down from the default (write) for least-privilege publishing.
       contents: read
 
+    outputs:
+      # Consumed by the tag job below, so it only tags what actually published.
+      published: ${{ steps.check.outputs.publish }}
+      version: ${{ steps.check.outputs.version }}
+
     steps:
       - uses: actions/checkout@v4
 
@@ -111,6 +117,7 @@ jobs:
         run: |
           NAME=$(node -p "require('./package.json').name")
           VERSION=$(node -p "require('./package.json').version")
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
           echo "Package: ${NAME}@${VERSION}"
           if npm view "${NAME}@${VERSION}" version > /dev/null 2>&1; then
             echo "publish=false" >> "$GITHUB_OUTPUT"
@@ -150,3 +157,53 @@ jobs:
           npm run release
         env:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+  # Marks the commit each published version was built from.
+  #
+  # This is a SEPARATE job, not a step in `publish`, so that write access to the
+  # repository is not held by the job that runs the release. `publish` keeps
+  # `contents: read`; only this job can write a ref, and all it can do is tag.
+  #
+  # Tagging deliberately happens AFTER publishing, never before. npm remains the
+  # source of truth for what shipped — the tag is a convenience pointer, so it is
+  # created only once the publish it describes has actually succeeded. A tag
+  # cannot therefore exist for a version that never published.
+  #
+  # This does not create a second way to release: nothing triggers on tags.
+  tag:
+    name: Tag the published commit
+    needs: publish
+    if: needs.publish.outputs.published == 'true'
+    runs-on: ubuntu-latest
+
+    permissions:
+      # To push the tag ref. Nothing else in this workflow needs write access.
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Tag the release
+        env:
+          VERSION: ${{ needs.publish.outputs.version }}
+        run: |
+          set -euo pipefail
+
+          # Idempotent, so re-running a partially failed workflow is safe.
+          if git ls-remote --exit-code --tags origin "refs/tags/${VERSION}" >/dev/null 2>&1; then
+            echo "⏭️  Tag ${VERSION} already exists — nothing to do."
+            exit 0
+          fi
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+
+          # Separate -m flags, one paragraph each. A single multi-line string
+          # here would bake this file's YAML indentation into the tag message.
+          git tag -a "${VERSION}" \
+            -m "${VERSION}" \
+            -m "Published to npm from GitHub Actions with a provenance attestation." \
+            -m "Run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+
+          git push origin "${VERSION}"
+          echo "🏷️  Tagged ${VERSION} at ${GITHUB_SHA}"

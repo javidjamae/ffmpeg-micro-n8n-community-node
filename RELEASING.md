@@ -30,9 +30,31 @@ gh run watch --exit-status
 4. It then runs n8n's own review lint against the source (`scripts/scan-gate.mjs`) and stops if that would be rejected — see [Review rules are checked before publishing](#review-rules-are-checked-before-publishing).
 5. Otherwise `npm run release` detects GitHub Actions and runs lint, build, then `npm publish` with provenance. npm authenticates through the trusted publisher configured on the package, so no token is involved.
 
-In CI, `npm run release` performs **no git operations** — it does not commit, tag, or push. That is why publishing on a branch push works exactly like publishing on a tag push, and why the workflow only needs `contents: read`.
+In CI, `npm run release` itself performs **no git operations** — it does not commit, tag, or push. Tagging is done afterwards by a separate `tag` job (see below).
 
-npm is the source of truth for what has shipped, deliberately, rather than git tags. A tag can be missing, mistyped, or point at a version that never published; "is this version on the registry" is the exact question that matters and cannot be wrong.
+npm remains the source of truth for what has shipped, deliberately, rather than git tags. A tag can be missing, mistyped, or point at a version that never published; "is this version on the registry" is the exact question that matters and cannot be wrong. Nothing in the release path reads a tag.
+
+## Tags
+
+Every published version gets a tag on the commit it was built from, created automatically by the `tag` job after a successful publish.
+
+The ordering matters: tagging happens **after** publishing, never before, so a tag cannot exist for a version that never shipped. The tag is a pointer for humans reading git history, not an input to anything — nothing triggers on tags, so this is not a second way to release.
+
+It is a separate job rather than a step in `publish` so that write access is not held by the job that runs the release. `publish` keeps `contents: read` and can mint an OIDC token; `tag` can only write a ref. The tag step is idempotent, so re-running a partially failed workflow is safe.
+
+Tags use the bare version with no `v` prefix (`0.2.3`), matching what is already in the repo.
+
+### Backfilled tags
+
+Versions 0.2.1 through 0.2.3 published before this job existed and were tagged retroactively. Their commits were not guessed from git history — they were read from each version's **npm provenance attestation**, which records the exact commit the published artifact was built from:
+
+```bash
+curl -s "https://registry.npmjs.org/-/npm/v1/attestations/<pkg>@<version>"
+```
+
+Their tag dates are set to the npm publish time rather than the backfill date.
+
+0.1.0 is deliberately left untagged: it was published from a laptop to reserve the package name (see the one-time setup below), so it has no provenance attestation and no verifiable commit to point at.
 
 ## Review rules are checked before publishing
 
@@ -64,7 +86,7 @@ Do not publish from your machine to work around a failed run.
 
 ## There is no second way to release, on purpose
 
-`npm run release` **refuses to run outside CI** (`scripts/ci-only.mjs`). There is also no tag trigger and no manual workflow dispatch.
+`npm run release` **refuses to run outside CI** (`scripts/ci-only.mjs`). There is also no tag trigger and no manual workflow dispatch. Tags are an *output* of releasing, never an input — pushing one by hand publishes nothing.
 
 That is deliberate. Each of those would be another way to release, and two release paths is how a version gets skipped or published twice. Specifically, run from a laptop `n8n-node release` would:
 
