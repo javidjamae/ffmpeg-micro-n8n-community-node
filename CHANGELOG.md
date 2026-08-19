@@ -4,6 +4,26 @@ All notable changes to `@ffmpeg-micro/n8n-nodes-ffmpeg-micro`.
 
 This project follows [Semantic Versioning](https://semver.org/).
 
+## 0.2.2
+
+**Failed and canceled jobs now fail the node.** This is a deliberate behavior change, and the reason to upgrade.
+
+### Fixed
+
+- **Wait for Completion (transcode and transcribe) previously returned a `failed` or `canceled` job as ordinary successful output.** The node showed green, the workflow continued, and the job's `error_message` — including quota guidance with an upgrade link — was never surfaced anywhere. A workflow could fail every single job for weeks while every execution looked successful.
+
+  Now: a job that finishes `failed` throws with the API's real error message, and a `canceled` job throws with a message saying so.
+
+### Do I need to change my workflows?
+
+Only if a workflow **relied on** failed jobs flowing through as normal output (for example, branching on `{{ $json.status }}` after a Wait node).
+
+- **Most workflows need no change** — jobs that complete still return exactly as before.
+- **To handle failures deliberately** (retry, notify, top up quota), enable the node's **error output** (Settings → On Error → "Continue (using error output)") and wire the error branch. The thrown message carries the API's full `error_message`, so quota blocks arrive with the reason and the upgrade link.
+- **To inspect a job's status without asserting success**, use the **Get** operation instead of Wait — Get still returns the job as data regardless of status.
+
+Note: over-quota jobs from fully-capped accounts now fail at **creation time** with HTTP 402 (visible as a node error even without this upgrade). This release makes every *other* failure visible too — validation errors, processing failures, and quota blocks on partially-capped accounts.
+
 ## 0.2.1
 
 **Fixes two wrong values in the Status Filter dropdowns.** Both are safe to upgrade to. Neither changes any node's inputs, outputs, or credentials, so existing workflows keep working unchanged.
