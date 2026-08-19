@@ -37,42 +37,43 @@
 # Both options work with --provenance. Provenance is signed by GitHub's OIDC
 # infrastructure regardless of how npm authentication is handled.
 #
-# ─── TAG CONVENTION ────────────────────────────────────────────────────────────
-#
-# This workflow triggers on tags matching "*.*.*" (e.g. 0.2.0).
-# If you prefer tags with a "v" prefix (e.g. v0.2.0), change the filter to:
-#   tags: ['v*.*.*']
-#
 # ─── RELEASE PROCESS ───────────────────────────────────────────────────────────
 #
-# NORMAL PATH — nothing manual. Bump "version" in package.json inside your PR,
-# add a CHANGELOG entry, and merge. This workflow runs on the push to main,
-# notices that version is not on npm yet, and publishes it.
+# ONE WAY TO RELEASE, no manual steps:
 #
-# There is no tag to remember and no local command to run. Forgetting the bump
-# is harmless: the guard sees the version already on npm and skips, so merging
-# a normal PR never republishes.
+#   1. bump "version" in package.json  (in your PR)
+#   2. add a CHANGELOG.md entry
+#   3. merge
 #
-# ESCAPE HATCH — pushing a tag like 0.2.1 still publishes, for the case where
-# main is already correct but the run failed or was never triggered.
+# The push to main runs this workflow, which publishes if that version is not on
+# npm yet. No tag to push, no local command to run.
 #
-# LOCAL — `npm run release` still works for an interactive bump, but it is no
-# longer needed and it bumps the version itself. Do not run it against a
-# package.json whose version was already bumped in a PR, or you will skip a
-# version number.
+# Forgetting the bump is harmless — the guard sees the version already on npm
+# and skips, so merging an ordinary PR never republishes.
+#
+# There is deliberately NO tag trigger, NO manual dispatch, and `npm run
+# release` refuses to run outside CI (scripts/ci-only.mjs). Every one of those
+# would be a SECOND way to release, and two paths is how a version gets skipped
+# or double-published. Run locally, `n8n-node release` bumps the version itself
+# and publishes without the provenance attestation n8n Cloud requires — quietly
+# wrong in two ways at once, which is why it is closed rather than documented.
+#
+# If a run fails, re-run it from the Actions tab. The guard makes that safe.
 
 name: Publish
 
 on:
-  # Publish when a version bump lands on main. The guard below decides whether
-  # there is anything to do, so this is safe on every merge.
+  # The ONLY way this package publishes. A version bump lands on main and the
+  # guard below decides whether there is anything to do, so this is safe to run
+  # on every merge.
+  #
+  # There is deliberately no tag trigger and no manual dispatch. Both would be a
+  # second way to release, and two release paths is how a version gets skipped
+  # or published twice. If a run fails, re-run it from the Actions tab — the
+  # guard makes that idempotent.
   push:
     branches:
       - main
-    tags:
-      # Matches 0.1.0, 1.2.3, 2.0.0-rc.1, etc.
-      # See "TAG CONVENTION" above if you prefer tags with a "v" prefix.
-      - '*.*.*'
 
 jobs:
   publish:

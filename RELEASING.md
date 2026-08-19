@@ -33,24 +33,22 @@ In CI, `npm run release` performs **no git operations** — it does not commit, 
 
 npm is the source of truth for what has shipped, deliberately, rather than git tags. A tag can be missing, mistyped, or point at a version that never published; "is this version on the registry" is the exact question that matters and cannot be wrong.
 
-## Escape hatch: publishing from a tag
+## If a release run fails
 
-Pushing a tag matching `*.*.*` still triggers the same workflow. Use it when `main` already has the right version but the run failed or never fired:
+Re-run the **Publish** workflow from the Actions tab. The guard makes that idempotent — it publishes only if the version still isn't on npm.
 
-```bash
-git tag 0.2.1          # no "v" prefix — the workflow trigger is *.*.*
-git push origin 0.2.1
-```
+Do not publish from your machine to work around a failed run.
 
-The same guard applies, so this cannot republish an existing version.
+## There is no second way to release, on purpose
 
-## `npm run release` locally
+`npm run release` **refuses to run outside CI** (`scripts/ci-only.mjs`). There is also no tag trigger and no manual workflow dispatch.
 
-Still works, but it is **no longer part of the normal flow** and is easy to misuse.
+That is deliberate. Each of those would be another way to release, and two release paths is how a version gets skipped or published twice. Specifically, run from a laptop `n8n-node release` would:
 
-Run locally, it bumps the version *itself* via release-it, then commits, tags, pushes, and creates a GitHub release. **Do not run it against a `package.json` whose version was already bumped in a PR** — it will bump again and skip a version number.
+- bump the version *itself* via release-it — so used on a `package.json` already bumped in a PR, it silently skips a version number, and
+- publish **without the provenance attestation** that n8n Cloud requires.
 
-If you want an interactive release, use it *instead of* bumping in the PR, not as well.
+Neither failure is loud, which is why the path is closed rather than documented-around.
 
 You cannot republish a version that already exists on npm. Always bump to a new version.
 
