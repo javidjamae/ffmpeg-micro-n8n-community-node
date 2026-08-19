@@ -343,7 +343,6 @@ export const transcodeListProperties: INodeProperties[] = [
 			{ name: 'Failed', value: 'failed' },
 			{ name: 'Pending', value: 'pending' },
 			{ name: 'Processing', value: 'processing' },
-			{ name: 'Queued', value: 'queued' },
 		],
 		displayOptions: { show: { resource: ['transcode'], operation: ['list'] } },
 	},
@@ -444,6 +443,7 @@ export const transcribeListProperties: INodeProperties[] = [
 		default: '',
 		options: [
 			{ name: 'Any', value: '' },
+			{ name: 'Canceled', value: 'canceled' },
 			{ name: 'Completed', value: 'completed' },
 			{ name: 'Failed', value: 'failed' },
 			{ name: 'Pending', value: 'pending' },

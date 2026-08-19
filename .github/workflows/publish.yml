@@ -37,29 +37,43 @@
 # Both options work with --provenance. Provenance is signed by GitHub's OIDC
 # infrastructure regardless of how npm authentication is handled.
 #
-# ─── TAG CONVENTION ────────────────────────────────────────────────────────────
-#
-# This workflow triggers on tags matching "*.*.*" (e.g. 0.2.0).
-# If you prefer tags with a "v" prefix (e.g. v0.2.0), change the filter to:
-#   tags: ['v*.*.*']
-#
 # ─── RELEASE PROCESS ───────────────────────────────────────────────────────────
 #
-# Run the following command locally to start an interactive release:
+# ONE WAY TO RELEASE, no manual steps:
 #
-#   npm run release
+#   1. bump "version" in package.json  (in your PR)
+#   2. add a CHANGELOG.md entry
+#   3. merge
 #
-# This will lint, build, prompt for a version bump, update the changelog,
-# commit, tag, and push — which triggers this workflow to publish to npm.
+# The push to main runs this workflow, which publishes if that version is not on
+# npm yet. No tag to push, no local command to run.
+#
+# Forgetting the bump is harmless — the guard sees the version already on npm
+# and skips, so merging an ordinary PR never republishes.
+#
+# There is deliberately NO tag trigger, NO manual dispatch, and `npm run
+# release` refuses to run outside CI (scripts/ci-only.mjs). Every one of those
+# would be a SECOND way to release, and two paths is how a version gets skipped
+# or double-published. Run locally, `n8n-node release` bumps the version itself
+# and publishes without the provenance attestation n8n Cloud requires — quietly
+# wrong in two ways at once, which is why it is closed rather than documented.
+#
+# If a run fails, re-run it from the Actions tab. The guard makes that safe.
 
 name: Publish
 
 on:
+  # The ONLY way this package publishes. A version bump lands on main and the
+  # guard below decides whether there is anything to do, so this is safe to run
+  # on every merge.
+  #
+  # There is deliberately no tag trigger and no manual dispatch. Both would be a
+  # second way to release, and two release paths is how a version gets skipped
+  # or published twice. If a run fails, re-run it from the Actions tab — the
+  # guard makes that idempotent.
   push:
-    tags:
-      # Matches 0.1.0, 1.2.3, 2.0.0-rc.1, etc.
-      # See "TAG CONVENTION" above if you prefer tags with a "v" prefix.
-      - '*.*.*'
+    branches:
+      - main
 
 jobs:
   publish:
@@ -84,7 +98,31 @@ jobs:
       - name: Install dependencies
         run: 'npm ci'
 
+      # Is the version in package.json already on npm? This is what makes it
+      # safe to run on every push to main. npm is the source of truth here, not
+      # git tags — a tag can be missing, mistyped, or created for a version that
+      # never published, whereas "is this version on the registry" is the exact
+      # question we care about and cannot be wrong about.
+      #
+      # `npm view <pkg>@<version> version` exits non-zero when the version does
+      # not exist, which is the signal to publish.
+      - name: Decide whether there is anything to publish
+        id: check
+        run: |
+          NAME=$(node -p "require('./package.json').name")
+          VERSION=$(node -p "require('./package.json').version")
+          echo "Package: ${NAME}@${VERSION}"
+          if npm view "${NAME}@${VERSION}" version > /dev/null 2>&1; then
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+            echo "⏭️  ${NAME}@${VERSION} is already on npm — nothing to do."
+            echo "    (This is the normal outcome for a PR that did not bump the version.)"
+          else
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+            echo "✅ ${NAME}@${VERSION} is not on npm yet — publishing."
+          fi
+
       - name: Release
+        if: steps.check.outputs.publish == 'true'
         # Publishes to npm with a provenance attestation (requires id-token: write above).
         # Lint and build run automatically as part of the release process.
         #

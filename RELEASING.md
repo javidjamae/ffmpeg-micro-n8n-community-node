@@ -2,38 +2,53 @@
 
 This package publishes to npm from GitHub Actions using npm **trusted publishing** (OIDC). No long-lived npm token is stored anywhere. Every published version carries a provenance statement, which n8n requires for verified community nodes.
 
-## How publishing works
-
-1. You bump the version, commit, and push a git tag matching `*.*.*` (for example `0.1.1`).
-2. The tag push triggers `.github/workflows/publish.yml`.
-3. In CI, `npm run release` detects it is running in GitHub Actions and runs `npm publish` with provenance enabled. npm authenticates the workflow through the trusted publisher configured on the package, so no token is needed.
-
-Locally, `npm run release` never publishes. It only bumps the version, updates the changelog, commits, tags, pushes, and creates a GitHub release. The actual npm publish always happens in CI.
-
 ## Cutting a release
 
-From a clean `main`:
+**Bump `version` in `package.json` in your PR, add a `CHANGELOG.md` entry, and merge.** That is the whole process. There is no tag to push and no local command to run.
 
-```bash
-npm run release
-```
+On the push to `main`, `.github/workflows/publish.yml` asks npm whether the version in `package.json` is already published. If it is not, it publishes. If it is, it skips and the run ends green.
 
-Answer the version prompt. release-it handles the commit, tag, and push, and CI publishes within a couple of minutes. Watch it with:
+That guard is what makes it safe to run on every merge:
+
+- Merging a PR that **did** bump the version publishes it.
+- Merging a PR that **did not** bump the version does nothing.
+- Re-running the workflow, or merging again, cannot double-publish.
+
+Forgetting to bump is therefore harmless — nothing publishes, and you bump in a follow-up PR.
+
+Watch a release with:
 
 ```bash
 gh run watch --exit-status
 ```
 
-If you prefer to avoid the interactive tool (or are scripting), the equivalent manual steps are:
+## How publishing works
 
-```bash
-npm run lint && npm run build
-# edit "version" in package.json to the new version
-git commit -am "chore: release X.Y.Z"
-git tag X.Y.Z          # no "v" prefix — the workflow trigger is *.*.*
-git push origin main
-git push origin X.Y.Z
-```
+1. A version bump lands on `main` (or a tag matching `*.*.*` is pushed — see the escape hatch below).
+2. That triggers `.github/workflows/publish.yml`.
+3. The workflow compares `package.json`'s version against npm and stops there if it already exists.
+4. Otherwise `npm run release` detects GitHub Actions and runs lint, build, then `npm publish` with provenance. npm authenticates through the trusted publisher configured on the package, so no token is involved.
+
+In CI, `npm run release` performs **no git operations** — it does not commit, tag, or push. That is why publishing on a branch push works exactly like publishing on a tag push, and why the workflow only needs `contents: read`.
+
+npm is the source of truth for what has shipped, deliberately, rather than git tags. A tag can be missing, mistyped, or point at a version that never published; "is this version on the registry" is the exact question that matters and cannot be wrong.
+
+## If a release run fails
+
+Re-run the **Publish** workflow from the Actions tab. The guard makes that idempotent — it publishes only if the version still isn't on npm.
+
+Do not publish from your machine to work around a failed run.
+
+## There is no second way to release, on purpose
+
+`npm run release` **refuses to run outside CI** (`scripts/ci-only.mjs`). There is also no tag trigger and no manual workflow dispatch.
+
+That is deliberate. Each of those would be another way to release, and two release paths is how a version gets skipped or published twice. Specifically, run from a laptop `n8n-node release` would:
+
+- bump the version *itself* via release-it — so used on a `package.json` already bumped in a PR, it silently skips a version number, and
+- publish **without the provenance attestation** that n8n Cloud requires.
+
+Neither failure is loud, which is why the path is closed rather than documented-around.
 
 You cannot republish a version that already exists on npm. Always bump to a new version.
 
